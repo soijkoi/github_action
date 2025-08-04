@@ -1,13 +1,10 @@
 name: Kernel Decompilation Pipeline
 
-on:
-  workflow_dispatch: # 手动触发
+on: [push, workflow_dispatch]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    
-
     steps:
     # 步骤 1: 安装基础依赖
     - name: Install dependencies
@@ -23,14 +20,11 @@ jobs:
       run: |
         # 下载内核
         wget https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.16.tar.xz
-        tar -xvf linux-6.16.tar.xz
+        tar -xf linux-6.16.tar.xz
         cd linux-6.16
-        
         # 精简配置
-        make thinconfig
         # 启用必要选项（根据反编译需要）
         make -j$(nproc) O=out KCFLAGS="-g" DEBUG_INFO_COMPRESSED=n DEBUG_INFO_REDUCED=n DEBUG_INFO=y DEBUG_INFO_DWARF5=y KALLSYMS_ALL=y tinyconfig
-        
         # 编译内核
         make -j$(nproc) O=out KCFLAGS="-g" DEBUG_INFO_COMPRESSED=n DEBUG_INFO_REDUCED=n DEBUG_INFO=y DEBUG_INFO_DWARF5=y KALLSYMS_ALL=y
 
@@ -60,4 +54,3 @@ jobs:
         name: decompilation-results
         path: |
           linux-6.16/retdec-out/*
-        retention-days: 1
