@@ -55,7 +55,7 @@ jobs:
 
     # 步骤 5: 打包并上传结果
     - name: Archive and upload results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: decompilation-results
         path: |
