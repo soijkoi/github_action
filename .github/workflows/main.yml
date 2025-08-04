@@ -32,6 +32,7 @@ jobs:
     # 步骤 3: 克隆并构建 RetDec
     - name: Build RetDec
       run: |
+        cd linux-6.16/out
         git clone --depth 1 https://github.com/avast/retdec.git
         cd retdec
         mkdir build && cd build
@@ -41,12 +42,12 @@ jobs:
     # 步骤 4: 反编译 vmlinux
     - name: Decompile vmlinux
       run: |
-        cd linux-6.16
+        cd linux-6.16/out
         mkdir output
         cd output
-        ../../retdec/install/bin/retdec-decompiler \
+        ../retdec/install/bin/retdec-decompiler \
           --no-memory-limit \
-          ../out/vmlinux
+          ../vmlinux
 
     # 步骤 5: 打包并上传结果
     - name: Archive and upload results
@@ -54,4 +55,4 @@ jobs:
       with:
         name: decompilation-results
         path: |
-          linux-6.16/output/*
+          linux-6.16/out/*
