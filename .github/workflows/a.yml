@@ -1,0 +1,32 @@
+name: Kernel Decompilation Pipeline
+
+on: [push, workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: a
+      run: |
+        lscpu
+        mkdir d
+        cd d
+        mkdir e
+        cd e
+        echo "aa">a.txt
+    - name: b
+      run: |
+        pwd
+        cd ~
+        pwd
+    - name: Upload Decompiled File
+      uses: actions/upload-artifact@v4
+      with:
+        name: vmlinux-decompiled
+        path: d/*
+    - name: Upload Decompiled File
+      uses: actions/upload-artifact@v4
+      with:
+        name: vmlinux-decompiled
+        path: d/e/*
+      
