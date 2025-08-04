@@ -45,7 +45,7 @@ jobs:
         ../retdec/install/bin/retdec-decompiler \
           --no-memory-limit \
           --output retdec-out \
-          vmlinux
+          ./out/vmlinux
 
     # 步骤 5: 打包并上传结果
     - name: Archive and upload results
