@@ -16,16 +16,17 @@ jobs:
       - name: Install dependencies for Linux kernel build
         run: |
           sudo apt update
+          sudo apt upgrade
           sudo apt install -y build-essential libncurses-dev bison flex libssl-dev libelf-dev gcc
 
       - name: Download Linux kernel source
         run: |
           wget https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.16.tar.xz
           tar -xf linux-6.16.tar.xz
-          cd linux-6.16  # 替换为您的配置文件路径
+          cd linux-6.16
           make O=out -j$(nproc) KCFLAGS="-g" CONFIG_DEBUG_INFO=y tinyconfig
           make -j$(nproc) O=out -j$(nproc) KCFLAGS="-g" CONFIG_DEBUG_INFO=y
-          cp out/vmlinux ../vmlinux
+          cp out/vmlinux ~/vmlinux
 
   build-retdec:
     runs-on: ubuntu-latest
@@ -40,20 +41,19 @@ jobs:
         run: |
           git clone https://github.com/avast/retdec.git
           cd retdec
+          
+      - name: Build and install RetDec 
+        run: |
           mkdir build && cd build
           cmake ..
           make -j$(nproc)
-          sudo make install
+          sudo make install -j$(nproc)
 
   decompile-vmlinux:
     runs-on: ubuntu-latest
     needs: [build-linux-kernel, build-retdec]
     steps:
-      - name: Install RetDec
-        run: |
-          sudo apt update
-          sudo apt install -y retdec
-
       - name: Decompile vmlinux
         run: |
-          retdec --output vmlinux.c ../vmlinux
+          cd ~
+          retdec-decompiler vmlinux
