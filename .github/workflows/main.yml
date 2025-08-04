@@ -1,59 +1,63 @@
-name: Build Linux Kernel and RetDec
+name: Kernel Decompilation Pipeline
 
 on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
+  workflow_dispatch: # 手动触发
 
 jobs:
-  build-linux-kernel:
+  build:
     runs-on: ubuntu-latest
+    
+
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+    # 步骤 1: 安装基础依赖
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          git cmake build-essential flex bison libncurses-dev \
+          python3 python3-dev zlib1g-dev libtinfo-dev libxml2-dev \
+          ninja-build pkg-config wget xz-utils
 
-      - name: Install dependencies for Linux kernel build
-        run: |
-          sudo apt update
-          sudo apt upgrade
-          sudo apt install -y build-essential libncurses-dev bison flex libssl-dev libelf-dev gcc
+    # 步骤 2: 下载并编译 Linux 6.16 内核
+    - name: Build Linux kernel
+      run: |
+        # 下载内核
+        wget https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.16.tar.xz
+        tar -xvf linux-6.16.tar.xz
+        cd linux-6.16
+        
+        # 精简配置
+        make thinconfig
+        # 启用必要选项（根据反编译需要）
+        make -j$(nproc) O=out KCFLAGS="-g" DEBUG_INFO_COMPRESSED=n DEBUG_INFO_REDUCED=n DEBUG_INFO=y DEBUG_INFO_DWARF5=y KALLSYMS_ALL=y tinyconfig
+        
+        # 编译内核
+        make -j$(nproc) O=out KCFLAGS="-g" DEBUG_INFO_COMPRESSED=n DEBUG_INFO_REDUCED=n DEBUG_INFO=y DEBUG_INFO_DWARF5=y KALLSYMS_ALL=y
 
-      - name: Download Linux kernel source
-        run: |
-          cd ~
-          wget https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.16.tar.xz
-          tar -xf linux-6.16.tar.xz
-          cd linux-6.16
-          make O=out -j$(nproc) KCFLAGS="-g" CONFIG_DEBUG_INFO=y tinyconfig
-          make -j$(nproc) O=out -j$(nproc) KCFLAGS="-g" CONFIG_DEBUG_INFO=y
-          cp out/vmlinux ../vmlinux
 
-  build-retdec:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Install dependencies for RetDec build
-        run: |
-          sudo apt update
-          sudo apt upgrade
-          sudo apt install -y cmake git build-essential python3 python3-pip
-          
-      - name: Build and install RetDec 
-        run: |
-          cd ~
-          git clone https://github.com/avast/retdec.git
-          cd retdec
-          mkdir build
-          cd build
-          cmake ..
-          make -j$(nproc)
-          sudo make install -j$(nproc)
+    # 步骤 3: 克隆并构建 RetDec
+    - name: Build RetDec
+      run: |
+        git clone --depth 1 https://github.com/avast/retdec.git
+        cd retdec
+        mkdir build && cd build
+        cmake .. -DCMAKE_INSTALL_PREFIX=../install
+        make -j$(nproc) install
 
-  decompile-vmlinux:
-    runs-on: ubuntu-latest
-    needs: [build-linux-kernel, build-retdec]
-    steps:
-      - name: Decompile vmlinux
-        run: |
-          cd ~
-          ~/retdec/build/src/retdec-decompiler/retdec-decompiler vmlinux
+    # 步骤 4: 反编译 vmlinux
+    - name: Decompile vmlinux
+      run: |
+        cd linux-6.16
+        ../retdec/install/bin/retdec-decompiler \
+          --no-memory-limit \
+          --output retdec-out \
+          vmlinux
+
+    # 步骤 5: 打包并上传结果
+    - name: Archive and upload results
+      uses: actions/upload-artifact@v3
+      with:
+        name: decompilation-results
+        path: |
+          linux-6.16/retdec-out/*
+        retention-days: 1
