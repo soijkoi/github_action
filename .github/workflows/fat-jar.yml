@@ -44,50 +44,66 @@ jobs:
           jar xf ../server.jar
           # 当前目录为 work/extracted
 
-      # 解析 classpath-joined 和 main-class，并复制依赖到 fatjar/libs
-      - name: Parse and copy dependencies
+      # 解析 classpath-joined 和 main-class，并复制依赖到 fatjar/libs（使用 cp -t）
+      - name: Parse and copy dependencies (using cp -t)
         id: parse
         shell: bash
         run: |
-          
+          # 不使用 set -e，改为手动检查错误
           cd work/extracted
 
           # 读取主类
           MAIN_CLASS=$(cat META-INF/main-class | tr -d '\n\r')
           echo "main_class=$MAIN_CLASS" >> $GITHUB_OUTPUT
-          cd ../..
-          tree
-          cd work/extracted
-          # 读取 classpath-joined，生成依赖 jar 列表（相对于 extracted 根目录）
+          echo "Main class: $MAIN_CLASS"
+
+          # 读取 classpath-joined（分号分隔），生成依赖 jar 列表（相对于 META-INF 目录）
           CP_FILE="META-INF/classpath-joined"
           if [ ! -f "$CP_FILE" ]; then
             echo "Error: classpath-joined not found"
             exit 1
           fi
-          # 文件内容是以空格分隔的路径列表（例如 libraries/...  versions/...）
-          cp_entries=$(cat "$CP_FILE" | tr ';' '\n')
+          # 去除 Windows 换行符，按分号分割，并过滤空行
+          cp_entries=$(cat "$CP_FILE" | tr -d '\r' | tr ';' '\n' | sed '/^$/d')
+          echo "Raw classpath entries:"
+          echo "$cp_entries"
           echo "$cp_entries" > dependencies.txt
 
           # 创建目标目录 fatjar/libs (位于仓库根目录)
           mkdir -p ../../fatjar/libs
 
-          # 复制每个依赖 jar 到 fatjar/libs
-          success_count=0
+          # 收集所有存在的源文件路径（加上 META-INF/ 前缀）
+          source_files=()
+          missing_files=()
           while IFS= read -r relpath; do
             src_path="META-INF/$relpath"
             if [ -f "$src_path" ]; then
-              cp -v "$src_path" ../../fatjar/libs/
-              ((success_count++))
+              source_files+=("$src_path")
             else
-              echo "Warning: $src_path not found"
+              missing_files+=("$src_path")
             fi
           done < dependencies.txt
 
-          if [ $success_count -eq 0 ]; then
-            echo "Error: No jar files were copied"
+          echo "Total entries: ${#source_files[@]} found, ${#missing_files[@]} missing"
+          if [ ${#missing_files[@]} -gt 0 ]; then
+            echo "Warning: The following files were not found:"
+            printf '%s\n' "${missing_files[@]}"
+          fi
+
+          if [ ${#source_files[@]} -eq 0 ]; then
+            echo "Error: No jar files found to copy"
             exit 1
           fi
-          echo "Successfully copied $success_count jar files to fatjar/libs"
+
+          # 使用 cp -t 批量复制所有找到的文件到目标目录
+          echo "Copying ${#source_files[@]} files to ../../fatjar/libs/ ..."
+          cp -v -t ../../fatjar/libs/ "${source_files[@]}"
+          if [ $? -ne 0 ]; then
+            echo "Error: Failed to copy some files"
+            exit 1
+          fi
+
+          echo "Successfully copied ${#source_files[@]} jar files to fatjar/libs"
 
       # 生成 Maven 项目 pom.xml（基于 fatjar/libs 下的实际文件）- 使用 printf
       - name: Generate pom.xml with transformers (using printf)
