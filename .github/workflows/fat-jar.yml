@@ -63,7 +63,7 @@ jobs:
             exit 1
           fi
           # 文件内容是以空格分隔的路径列表（例如 libraries/...  versions/...）
-          cp_entries=$(cat "$CP_FILE" | tr ' ' '\n')
+          cp_entries=$(cat "$CP_FILE" | tr ';' '\n')
           echo "$cp_entries" > dependencies.txt
 
           # 创建目标目录 fatjar/libs (位于仓库根目录)
