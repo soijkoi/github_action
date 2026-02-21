@@ -35,6 +35,7 @@
                             <goal>shade</goal>
                         </goals>
                         <configuration>
+                           <includeSystemScope>true</includeSystemScope>
                             <createDependencyReducedPom>false</createDependencyReducedPom>
                                <artifactSet>
                           <includes>
