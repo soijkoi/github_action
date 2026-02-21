@@ -156,7 +156,7 @@ jobs:
 
           # 调试输出
           echo "=== Final pom.xml (first 20 lines) ==="
-          head -20 pom.xml
+          head -200 pom.xml
           echo "=== Last 10 lines ==="
           tail -100 pom.xml
       # 执行 Maven 打包
