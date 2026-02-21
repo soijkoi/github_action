@@ -60,13 +60,13 @@ jobs:
               mavenCentral()
           }
           
-          // 定义一个自定义配置，用于显式声明要强制打包的本地JAR
+
           configurations {
               forcedJars
           }
           
           dependencies {
-              // 将目标目录下的所有JAR添加到自定义配置中，而非 runtimeOnly
+              
               forcedJars fileTree(dir: 'build_temp/META-INF/libraries', include: ['**/*.jar'])
               forcedJars fileTree(dir: 'build_temp/META-INF/versions', include: ['**/*.jar'])
           }
@@ -74,14 +74,13 @@ jobs:
           shadowJar {
               // 强制只打包 forcedJars 配置中的依赖（解压合并）
               configurations = [project.configurations.forcedJars]
-          
+              transform(Log4j2PluginsCacheFileTransformer)
               archiveFileName = 'minecraft-server-fat.jar'
               manifest {
                   attributes 'Main-Class': '${{ env.MAIN_CLASS }}'
               }
           
-              // 正确处理 Log4j2 二进制缓存合并
-              transform(com.gradleup.shadow.transformers.Log4j2PluginsCacheFileTransformer)
+
           
               // 合并 SPI 服务文件
               mergeServiceFiles()
