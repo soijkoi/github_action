@@ -105,7 +105,7 @@ jobs:
 
           echo "Successfully copied ${#source_files[@]} jar files to fatjar/libs"
 
-      - name: Generate final pom.xml from template (using printf for dependencies)
+      - name: Generate final pom.xml from template (using printf for dependencies, and write closing tags in yml)
         shell: bash
         run: |
           cd fatjar
@@ -116,7 +116,7 @@ jobs:
             exit 1
           fi
 
-          # 复制模板
+          # 复制模板（模板以 <dependencies> 结尾，不含闭合标签）
           cp ../pom-template.xml pom.xml
 
           # 获取 libs 目录下所有 jar 文件
@@ -129,27 +129,22 @@ jobs:
           echo "Found ${#jar_files[@]} jar files:"
           ls -l libs/
 
-          # 使用 printf 将依赖项写入临时文件
-          deps_temp=$(mktemp)
+          # 使用 printf 将依赖项追加到 pom.xml
           for jar in "${jar_files[@]}"; do
             filename=$(basename "$jar")
             artifactId="dep-${filename%.*}"
-            # 使用 printf 逐行写入 dependency 块
-            printf '        <dependency>\n' >> "$deps_temp"
-            printf '            <groupId>com.example.deps</groupId>\n' >> "$deps_temp"
-            printf '            <artifactId>%s</artifactId>\n' "$artifactId" >> "$deps_temp"
-            printf '            <version>1.0</version>\n' >> "$deps_temp"
-            printf '            <scope>system</scope>\n' >> "$deps_temp"
-            printf '            <systemPath>${project.basedir}/libs/%s</systemPath>\n' "$filename" >> "$deps_temp"
-            printf '        </dependency>\n' >> "$deps_temp"
+            printf '        <dependency>\n' >> pom.xml
+            printf '            <groupId>com.example.deps</groupId>\n' >> pom.xml
+            printf '            <artifactId>%s</artifactId>\n' "$artifactId" >> pom.xml
+            printf '            <version>1.0</version>\n' >> pom.xml
+            printf '            <scope>system</scope>\n' >> pom.xml
+            printf '            <systemPath>${project.basedir}/libs/%s</systemPath>\n' "$filename" >> pom.xml
+            printf '        </dependency>\n' >> pom.xml
           done
 
-          # 将临时文件内容插入到 pom.xml 的 </dependencies> 之前
-          # 使用 sed 的 r 命令在匹配行前插入文件内容
-          sed -i "/<\/dependencies>/r $deps_temp" pom.xml
-
-          # 删除临时文件
-          rm -f "$deps_temp"
+          # 追加 </dependencies> 和 </project>
+          printf '%s\n' '    </dependencies>' >> pom.xml
+          printf '%s\n' '</project>' >> pom.xml
 
           # 替换主类占位符
           sed -i "s|MAIN_CLASS_PLACEHOLDER|${{ steps.parse.outputs.main_class }}|g" pom.xml
@@ -158,7 +153,8 @@ jobs:
           echo "=== Final pom.xml (first 20 lines) ==="
           head -200 pom.xml
           echo "=== Last 10 lines ==="
-          tail -100 pom.xml
+          tail -10 pom.xml
+
       # 执行 Maven 打包
       - name: Build fat jar with Maven
         run: |
