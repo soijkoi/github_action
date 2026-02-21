@@ -158,7 +158,7 @@ jobs:
           echo "=== Final pom.xml (first 20 lines) ==="
           head -20 pom.xml
           echo "=== Last 10 lines ==="
-          tail -10 pom.xml
+          tail -100 pom.xml
       # 执行 Maven 打包
       - name: Build fat jar with Maven
         run: |
