@@ -45,7 +45,7 @@ jobs:
 
           plugins {
               id 'java'
-              id 'com.gradleup.shadow' version '8.3.0'
+              id 'com.gradleup.shadow'
           }
 
           repositories {
@@ -54,11 +54,8 @@ jobs:
 
           dependencies {
               // 关键：将解压后的 libraries 目录和 versions 下的 jar 全部作为编译依赖
-              implementation fileTree(dir: 'build_temp/libraries', include: ['*.jar'])
               implementation fileTree(dir: 'build_temp/META-INF/libraries', include: ['*.jar'])
               implementation fileTree(dir: 'build_temp/META-INF/versions', include: ['*.jar'])
-              // 包含原始 jar（处理可能残留在根目录的类）
-              implementation files('build_temp/server-origin.jar')
           }
 
           shadowJar {
