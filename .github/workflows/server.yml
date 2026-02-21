@@ -165,7 +165,7 @@ jobs:
       - name: Locate fat jar
         id: locate
         run: |
-          JAR_PATH=$(find fatjar/target -name "*.jar" ! -name "original-*.jar" | head -1)
+          JAR_PATH=/home/runner/work/github_action/github_action/fatjar/target/minecraft-server-fat-1.0-shaded.jar
           echo "jar_path=$JAR_PATH" >> $GITHUB_OUTPUT
 
       # 上传生成的 Fat JAR
