@@ -4,9 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       server_jar_url:
-        description: 'Minecraft Server Jar 下载链接'
+        description: 'Minecraft Server Jar 下载链接 (非官方)'
         required: true
-        default: 'https://piston-data.mojang.com/v1/objects/3ca78d5068bf9b422f694d3f0820e289581c0f0d/server.jar'
+        default: 'https://example.com/minecraft_server.jar'
+  push:
+    branches: [ main ]
 
 jobs:
   build-fat-jar:
@@ -66,26 +68,41 @@ jobs:
           echo "$cp_entries" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
-      # 创建 Maven 项目并配置 Shade Plugin 的多个 Transformer
+      # 创建 Maven 项目并配置 Shade Plugin 的多个 Transformer（修复依赖生成）
       - name: Prepare Maven project with enhanced transformers
         shell: bash
         run: |
+          set -e  # 任何错误立即退出
           mkdir -p fatjar/src/main/java
           cd fatjar
 
           # 复制所有依赖 JAR 到 libs 目录
           mkdir -p libs
           cd ../work/extracted
+          if [ ! -f dependencies.txt ]; then
+            echo "Error: dependencies.txt not found"
+            exit 1
+          fi
           while IFS= read -r jar_path; do
             if [ -f "$jar_path" ]; then
-              cp "$jar_path" ../../fatjar/libs/
+              cp -v "$jar_path" ../../fatjar/libs/
             else
-              echo "Warning: $jar_path not found"
+              echo "Warning: $jar_path not found, skipping"
             fi
           done < dependencies.txt
           cd ../../fatjar
 
-          # 使用 printf 逐行写入 pom.xml，避免 heredoc 缩进问题
+          # 安全地获取 jar 文件列表（防止通配符未展开）
+          shopt -s nullglob
+          jar_files=(libs/*.jar)
+          if [ ${#jar_files[@]} -eq 0 ]; then
+            echo "Error: No jar files found in libs directory"
+            exit 1
+          fi
+          echo "Found ${#jar_files[@]} jar files:"
+          ls -l libs/
+
+          # 使用 printf 逐行写入 pom.xml 头部（避免 heredoc 缩进问题）
           printf '%s\n' \
             '<?xml version="1.0" encoding="UTF-8"?>' \
             '<project xmlns="http://maven.apache.org/POM/4.0.0"' \
@@ -160,10 +177,13 @@ jobs:
             '' \
             '    <dependencies>' > pom.xml
 
-          # 为 libs 中的每个 JAR 添加 system 依赖
-          for jar in libs/*.jar; do
+          # 为每个 jar 添加 system 依赖（使用数组确保每个文件单独处理）
+          for jar in "${jar_files[@]}"; do
             filename=$(basename "$jar")
+            # 移除 .jar 后缀，作为 artifactId 的一部分
             artifactId="dep-${filename%.*}"
+            # 可选：清理非法字符（Maven 允许字母、数字、-、_、.，通常版本号中的点没问题）
+            # artifactId=$(echo "$artifactId" | sed 's/[^a-zA-Z0-9._-]/_/g')
             printf '%s\n' \
               "        <dependency>" \
               "            <groupId>com.example.deps</groupId>" \
@@ -181,6 +201,13 @@ jobs:
 
           # 替换主类占位符
           sed -i "s|MAIN_CLASS_PLACEHOLDER|${{ steps.parse.outputs.main_class }}|g" pom.xml
+
+          # 调试：输出 pom.xml 前20行和依赖部分
+          echo "=== pom.xml head ==="
+          head -20 pom.xml
+          echo "=== dependencies sample (last 10 lines) ==="
+          tail -10 pom.xml
+          echo "=== end ==="
 
       # 执行 Maven 打包
       - name: Build fat jar with Maven
