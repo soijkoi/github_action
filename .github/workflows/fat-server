@@ -1,0 +1,217 @@
+name: Build Minecraft Server Fat Jar (with Enhanced Transformers)
+
+on:
+  workflow_dispatch:
+    inputs:
+      server_jar_url:
+        description: 'Minecraft Server Jar 下载链接'
+        required: true
+        default: 'https://piston-data.mojang.com/v1/objects/3ca78d5068bf9b422f694d3f0820e289581c0f0d/server.jar'
+
+jobs:
+  build-fat-jar:
+    runs-on: ubuntu-latest
+    name: Build Fat Jar with Transformers
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Install Maven (if not present)
+        run: sudo apt-get update && sudo apt-get install -y maven
+
+      # 下载并解压外层 JAR
+      - name: Download and extract server.jar
+        shell: bash
+        run: |
+          mkdir -p work
+          cd work
+          JAR_URL="${{ github.event.inputs.server_jar_url }}"
+          if [ -z "$JAR_URL" ]; then
+            echo "Error: No JAR URL provided"
+            exit 1
+          fi
+          wget -O server.jar "$JAR_URL"
+          mkdir extracted
+          cd extracted
+          jar xf ../server.jar
+          cd ..
+
+      # 解析 classpath-joined 和 main-class
+      - name: Parse classpath and main class
+        id: parse
+        shell: bash
+        run: |
+          cd work/extracted
+          CP_FILE="META-INF/classpath-joined"
+          if [ ! -f "$CP_FILE" ]; then
+            echo "Error: classpath-joined not found"
+            exit 1
+          fi
+          # 转换为绝对路径列表
+          cp_entries=$(cat "$CP_FILE" | tr ' ' '\n' | sed 's/^/..\/..\//')
+          echo "$cp_entries" > dependencies.txt
+
+          MAIN_CLASS=$(cat META-INF/main-class | tr -d '\n\r')
+          echo "main_class=$MAIN_CLASS" >> $GITHUB_OUTPUT
+
+          echo "DEPENDENCIES<<EOF" >> $GITHUB_ENV
+          echo "$cp_entries" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      # 创建 Maven 项目并配置 Shade Plugin 的多个 Transformer
+      - name: Prepare Maven project with enhanced transformers
+        shell: bash
+        run: |
+          mkdir -p fatjar/src/main/java
+          cd fatjar
+
+          # 复制所有依赖 JAR 到 libs 目录
+          mkdir -p libs
+          cd ../work/extracted
+          while IFS= read -r jar_path; do
+            if [ -f "$jar_path" ]; then
+              cp "$jar_path" ../../fatjar/libs/
+            else
+              echo "Warning: $jar_path not found"
+            fi
+          done < dependencies.txt
+          cd ../../fatjar
+
+          # 生成包含多个 Transformer 的 pom.xml
+          cat > pom.xml << 'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.example</groupId>
+    <artifactId>minecraft-server-fat</artifactId>
+    <version>1.0</version>
+    <packaging>jar</packaging>
+
+    <properties>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.5.0</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                            <transformers>
+                                <!-- 1. 合并 Log4j2 插件缓存文件 (关键) -->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.Log4j2PluginCacheTransformer"/>
+
+                                <!-- 2. 合并 META-INF/services 下的服务描述文件 (如 SPI) -->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+
+                                <!-- 3. 合并 Log4j2 配置文件 (追加方式) -->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                                    <resource>log4j2.xml</resource>
+                                </transformer>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                                    <resource>log4j2.properties</resource>
+                                </transformer>
+
+                                <!-- 4. 合并属性文件 (Properties) - 适用于多个 jar 中的同名 .properties 文件 -->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.PropertiesResourceTransformer"/>
+
+                                <!-- 5. 合并 XML 文件 (追加方式，谨慎使用，可能导致格式问题，但保留作为选项) -->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.XmlAppendingTransformer"/>
+
+                                <!-- 6. 合并 Groovy 相关配置 (如果存在 Groovy 支持) -->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.GroovyResourceTransformer"/>
+
+                                <!-- 7. 设置 MANIFEST.MF 的主类，使 JAR 可直接运行 -->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>MAIN_CLASS_PLACEHOLDER</mainClass>
+                                </transformer>
+
+                                <!-- 8. 合并其他可能冲突的文本文件 (如 readme 等，根据需要添加) -->
+                                <!-- <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                                    <resource>reference.conf</resource>
+                                </transformer> -->
+                            </transformers>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <dependencies>
+EOF
+
+          # 为 libs 中的每个 JAR 添加 system 依赖
+          for jar in libs/*.jar; do
+            filename=$(basename "$jar")
+            artifactId="dep-${filename%.*}"
+            cat >> pom.xml << EOF
+        <dependency>
+            <groupId>com.example.deps</groupId>
+            <artifactId>$artifactId</artifactId>
+            <version>1.0</version>
+            <scope>system</scope>
+            <systemPath>\${project.basedir}/libs/$filename</systemPath>
+        </dependency>
+EOF
+          done
+
+          # 关闭 dependencies 和 project
+          cat >> pom.xml << 'EOF'
+    </dependencies>
+</project>
+EOF
+
+          # 替换主类占位符
+          sed -i "s|MAIN_CLASS_PLACEHOLDER|${{ steps.parse.outputs.main_class }}|g" pom.xml
+
+      # 执行 Maven 打包
+      - name: Build fat jar with Maven
+        run: |
+          cd fatjar
+          mvn clean package
+
+      # 定位生成的 Fat JAR
+      - name: Locate fat jar
+        id: locate
+        run: |
+          JAR_PATH=$(find fatjar/target -name "*.jar" ! -name "original-*.jar" | head -1)
+          echo "jar_path=$JAR_PATH" >> $GITHUB_OUTPUT
+
+      # 上传生成的 Fat JAR
+      - name: Upload Fat Jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: minecraft-server-fatjar
+          path: ${{ steps.locate.outputs.jar_path }}
+          if-no-files-found: error
