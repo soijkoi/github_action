@@ -95,7 +95,7 @@ jobs:
           EOF
         
       - name: Build Fat Jar
-        run: gradle shadowJar --no-daemon
+        run: gradle shadowJar --no-daemon --warning-mode all
 
       # 4. 提供结果下载
       - name: Upload Artifact
