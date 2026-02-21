@@ -36,8 +36,8 @@ jobs:
           # 解压所有依赖库和版本 Jar
 
           cd ..
-          mkdir -p src/main/java
-          echo "public class Placeholder {}" > src/main/java/Placeholder.java
+      #    mkdir -p src/main/java
+      # echo "public class Placeholder {}" > src/main/java/Placeholder.java
 
       # 3. 使用 com.gradleup.shadow 构建
       - name: Generate Build Script
@@ -51,35 +51,42 @@ jobs:
                   classpath "com.gradleup.shadow:shadow-gradle-plugin:9.3.0"
               }
           }
-
+          
           import com.github.jengelman.gradle.plugins.shadow.transformers.Log4j2PluginsCacheFileTransformer
-
+          
           apply plugin: 'java'
           apply plugin: 'com.gradleup.shadow'
-
+          
           repositories {
               mavenCentral()
           }
-
-          dependencies {
-              // 关键：将解压后的 libraries 目录和 versions 下的 jar 全部作为编译依赖
-              runtimeOnly fileTree(dir: 'build_temp/META-INF/libraries', include: ['*.jar'])
-              runtimeOnly fileTree(dir: 'build_temp/META-INF/versions', include: ['*.jar'])
+          
+          // 定义一个自定义配置，用于显式声明要强制打包的本地JAR
+          configurations {
+              forcedJars
           }
-
+          
+          dependencies {
+              // 将目标目录下的所有JAR添加到自定义配置中，而非 runtimeOnly
+              forcedJars fileTree(dir: 'build_temp/META-INF/libraries', include: ['*.jar'])
+              forcedJars fileTree(dir: 'build_temp/META-INF/versions', include: ['*.jar'])
+          }
+          
           shadowJar {
+              // 强制只打包 forcedJars 配置中的依赖（解压合并）
+              configurations = [project.configurations.forcedJars]
+          
               archiveFileName = 'minecraft-server-fat.jar'
-              configurations = [project.configurations.runtimeClasspath]
               manifest {
                   attributes 'Main-Class': '${{ env.MAIN_CLASS }}'
               }
-
+          
               // 正确处理 Log4j2 二进制缓存合并
               transform(Log4j2PluginsCacheFileTransformer)
-              
-              // 合并 SPI 服务文件 (META-INF/services)
+          
+              // 合并 SPI 服务文件
               mergeServiceFiles()
-              
+          
               // 移除签名文件防止启动报错
               exclude 'META-INF/*.SF'
               exclude 'META-INF/*.DSA'
