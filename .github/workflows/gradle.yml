@@ -52,7 +52,6 @@ jobs:
               }
           }
           
-          import com.github.jengelman.gradle.plugins.shadow.transformers.Log4j2PluginsCacheFileTransformer
           
           apply plugin: 'java'
           apply plugin: 'com.gradleup.shadow'
@@ -82,7 +81,7 @@ jobs:
               }
           
               // 正确处理 Log4j2 二进制缓存合并
-              transform(Log4j2PluginsCacheFileTransformer)
+              transform(com.github.jengelman.gradle.plugins.shadow.transformers.Log4j2PluginsCacheFileTransformer)
           
               // 合并 SPI 服务文件
               mergeServiceFiles()
