@@ -76,5 +76,3 @@
       <artifactId>log4j-transform-maven-shade-plugin-extensions</artifactId>
       <version>0.2.0</version>
     </dependency>
-        <!-- 动态插入的依赖项会放在这里 -->
-    </dependencies>
