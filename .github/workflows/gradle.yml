@@ -60,13 +60,13 @@ jobs:
 
           dependencies {
               // 关键：将解压后的 libraries 目录和 versions 下的 jar 全部作为编译依赖
-              implementation fileTree(dir: 'build_temp/META-INF/libraries', include: ['*.jar'])
-              implementation fileTree(dir: 'build_temp/META-INF/versions', include: ['*.jar'])
+              runtimeOnly fileTree(dir: 'build_temp/META-INF/libraries', include: ['*.jar'])
+              runtimeOnly fileTree(dir: 'build_temp/META-INF/versions', include: ['*.jar'])
           }
 
           shadowJar {
               archiveFileName = 'minecraft-server-fat.jar'
-              
+              configurations = [project.configurations.runtimeClasspath]
               manifest {
                   attributes 'Main-Class': '${{ env.MAIN_CLASS }}'
               }
