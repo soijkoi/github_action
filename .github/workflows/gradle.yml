@@ -68,8 +68,8 @@ jobs:
           
           dependencies {
               // 将目标目录下的所有JAR添加到自定义配置中，而非 runtimeOnly
-              forcedJars fileTree(dir: 'build_temp/META-INF/libraries', include: ['*.jar'])
-              forcedJars fileTree(dir: 'build_temp/META-INF/versions', include: ['*.jar'])
+              forcedJars fileTree(dir: 'build_temp/META-INF/libraries', include: ['**/*.jar'])
+              forcedJars fileTree(dir: 'build_temp/META-INF/versions', include: ['**/*.jar'])
           }
           
           shadowJar {
