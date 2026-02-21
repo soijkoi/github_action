@@ -61,7 +61,7 @@
                                     <resource>log4j2.properties</resource>
                                 </transformer>
                                 <!-- Properties 文件合并 -->
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.properties.PropertiesResourceTransformer"/>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.properties.PropertiesTransformer"/>
                                 <!-- XML 文件合并 -->
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.XmlAppendingTransformer"/>
                                 <!-- Groovy 资源合并 -->
