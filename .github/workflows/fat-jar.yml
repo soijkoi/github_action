@@ -7,8 +7,7 @@ on:
         description: 'Minecraft Server Jar 下载链接 (非官方)'
         required: true
         default: 'https://example.com/minecraft_server.jar'
-  push:
-    branches: [ main ]
+
 
 jobs:
   build-fat-jar:
@@ -25,7 +24,7 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Install Maven (if not present)
+      - name: Install Maven
         run: sudo apt-get update && sudo apt-get install -y maven
 
       # 下载并解压外层 JAR
@@ -43,171 +42,173 @@ jobs:
           mkdir extracted
           cd extracted
           jar xf ../server.jar
-          cd ..
+          # 当前目录为 work/extracted
 
-      # 解析 classpath-joined 和 main-class
-      - name: Parse classpath and main class
+      # 解析 classpath-joined 和 main-class，并复制依赖到 fatjar/libs
+      - name: Parse and copy dependencies
         id: parse
         shell: bash
         run: |
+          set -e
           cd work/extracted
+
+          # 读取主类
+          MAIN_CLASS=$(cat META-INF/main-class | tr -d '\n\r')
+          echo "main_class=$MAIN_CLASS" >> $GITHUB_OUTPUT
+
+          # 读取 classpath-joined，生成依赖 jar 列表（相对于 extracted 根目录）
           CP_FILE="META-INF/classpath-joined"
           if [ ! -f "$CP_FILE" ]; then
             echo "Error: classpath-joined not found"
             exit 1
           fi
-          # 转换为绝对路径列表
-          cp_entries=$(cat "$CP_FILE" | tr ' ' '\n' | sed 's/^/..\/..\//')
+          # 文件内容是以空格分隔的路径列表（例如 libraries/...  versions/...）
+          cp_entries=$(cat "$CP_FILE" | tr ' ' '\n')
           echo "$cp_entries" > dependencies.txt
 
-          MAIN_CLASS=$(cat META-INF/main-class | tr -d '\n\r')
-          echo "main_class=$MAIN_CLASS" >> $GITHUB_OUTPUT
+          # 创建目标目录 fatjar/libs (位于仓库根目录)
+          mkdir -p ../../fatjar/libs
 
-          # 将依赖列表存入环境变量（多行）
-          echo "DEPENDENCIES<<EOF" >> $GITHUB_ENV
-          echo "$cp_entries" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
-
-      # 创建 Maven 项目并配置 Shade Plugin 的多个 Transformer（修复依赖生成）
-      - name: Prepare Maven project with enhanced transformers
-        shell: bash
-        run: |
-          set -e  # 任何错误立即退出
-          mkdir -p fatjar/src/main/java
-          cd fatjar
-
-          # 复制所有依赖 JAR 到 libs 目录
-          mkdir -p libs
-          cd ../work/extracted
-          if [ ! -f dependencies.txt ]; then
-            echo "Error: dependencies.txt not found"
-            exit 1
-          fi
-          while IFS= read -r jar_path; do
-            if [ -f "$jar_path" ]; then
-              cp -v "$jar_path" ../../fatjar/libs/
+          # 复制每个依赖 jar 到 fatjar/libs
+          success_count=0
+          while IFS= read -r relpath; do
+            src_path="$relpath"
+            if [ -f "$src_path" ]; then
+              cp -v "$src_path" ../../fatjar/libs/
+              ((success_count++))
             else
-              echo "Warning: $jar_path not found, skipping"
+              echo "Warning: $src_path not found"
             fi
           done < dependencies.txt
-          cd ../../fatjar
 
-          # 安全地获取 jar 文件列表（防止通配符未展开）
+          if [ $success_count -eq 0 ]; then
+            echo "Error: No jar files were copied"
+            exit 1
+          fi
+          echo "Successfully copied $success_count jar files to fatjar/libs"
+
+      # 生成 Maven 项目 pom.xml（基于 fatjar/libs 下的实际文件）- 使用 printf
+      - name: Generate pom.xml with transformers (using printf)
+        shell: bash
+        run: |
+          set -e
+          cd fatjar
+          mkdir -p src/main/java  # 占位
+
+          # 获取 libs 目录下所有 jar 文件
           shopt -s nullglob
           jar_files=(libs/*.jar)
           if [ ${#jar_files[@]} -eq 0 ]; then
-            echo "Error: No jar files found in libs directory"
+            echo "Error: No jar files in libs directory"
             exit 1
           fi
           echo "Found ${#jar_files[@]} jar files:"
           ls -l libs/
 
-          # 使用 printf 逐行写入 pom.xml 头部（避免 heredoc 缩进问题）
-          printf '%s\n' \
-            '<?xml version="1.0" encoding="UTF-8"?>' \
-            '<project xmlns="http://maven.apache.org/POM/4.0.0"' \
-            '         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"' \
-            '         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">' \
-            '    <modelVersion>4.0.0</modelVersion>' \
-            '' \
-            '    <groupId>com.example</groupId>' \
-            '    <artifactId>minecraft-server-fat</artifactId>' \
-            '    <version>1.0</version>' \
-            '    <packaging>jar</packaging>' \
-            '' \
-            '    <properties>' \
-            '        <maven.compiler.source>21</maven.compiler.source>' \
-            '        <maven.compiler.target>21</maven.compiler.target>' \
-            '        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>' \
-            '    </properties>' \
-            '' \
-            '    <build>' \
-            '        <plugins>' \
-            '            <plugin>' \
-            '                <groupId>org.apache.maven.plugins</groupId>' \
-            '                <artifactId>maven-shade-plugin</artifactId>' \
-            '                <version>3.5.0</version>' \
-            '                <executions>' \
-            '                    <execution>' \
-            '                        <phase>package</phase>' \
-            '                        <goals>' \
-            '                            <goal>shade</goal>' \
-            '                        </goals>' \
-            '                        <configuration>' \
-            '                            <createDependencyReducedPom>false</createDependencyReducedPom>' \
-            '                            <filters>' \
-            '                                <filter>' \
-            '                                    <artifact>*:*</artifact>' \
-            '                                    <excludes>' \
-            '                                        <exclude>META-INF/*.SF</exclude>' \
-            '                                        <exclude>META-INF/*.DSA</exclude>' \
-            '                                        <exclude>META-INF/*.RSA</exclude>' \
-            '                                    </excludes>' \
-            '                                </filter>' \
-            '                            </filters>' \
-            '                            <transformers>' \
-            '                                <!-- 1. Log4j2 Plugin Cache Transformer -->' \
-            '                                <transformer implementation="org.apache.maven.plugins.shade.resource.Log4j2PluginCacheTransformer"/>' \
-            '                                <!-- 2. Services Resource Transformer -->' \
-            '                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>' \
-            '                                <!-- 3. Log4j2配置文件合并 -->' \
-            '                                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">' \
-            '                                    <resource>log4j2.xml</resource>' \
-            '                                </transformer>' \
-            '                                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">' \
-            '                                    <resource>log4j2.properties</resource>' \
-            '                                </transformer>' \
-            '                                <!-- 4. Properties文件合并 -->' \
-            '                                <transformer implementation="org.apache.maven.plugins.shade.resource.PropertiesResourceTransformer"/>' \
-            '                                <!-- 5. XML文件合并 -->' \
-            '                                <transformer implementation="org.apache.maven.plugins.shade.resource.XmlAppendingTransformer"/>' \
-            '                                <!-- 6. Groovy资源合并 -->' \
-            '                                <transformer implementation="org.apache.maven.plugins.shade.resource.GroovyResourceTransformer"/>' \
-            '                                <!-- 7. Manifest设置主类 -->' \
-            '                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">' \
-            '                                    <mainClass>MAIN_CLASS_PLACEHOLDER</mainClass>' \
-            '                                </transformer>' \
-            '                            </transformers>' \
-            '                        </configuration>' \
-            '                    </execution>' \
-            '                </executions>' \
-            '            </plugin>' \
-            '        </plugins>' \
-            '    </build>' \
-            '' \
-            '    <dependencies>' > pom.xml
+          # 使用 printf 创建 pom.xml（逐行写入，避免 heredoc 缩进问题）
+          # 先清空文件
+          > pom.xml
 
-          # 为每个 jar 添加 system 依赖（使用数组确保每个文件单独处理）
+          # XML 声明和 project 开始
+          printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' >> pom.xml
+          printf '%s\n' '<project xmlns="http://maven.apache.org/POM/4.0.0"' >> pom.xml
+          printf '%s\n' '         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"' >> pom.xml
+          printf '%s\n' '         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">' >> pom.xml
+          printf '%s\n' '    <modelVersion>4.0.0</modelVersion>' >> pom.xml
+          printf '%s\n' '' >> pom.xml
+          printf '%s\n' '    <groupId>com.example</groupId>' >> pom.xml
+          printf '%s\n' '    <artifactId>minecraft-server-fat</artifactId>' >> pom.xml
+          printf '%s\n' '    <version>1.0</version>' >> pom.xml
+          printf '%s\n' '    <packaging>jar</packaging>' >> pom.xml
+          printf '%s\n' '' >> pom.xml
+          printf '%s\n' '    <properties>' >> pom.xml
+          printf '%s\n' '        <maven.compiler.source>21</maven.compiler.source>' >> pom.xml
+          printf '%s\n' '        <maven.compiler.target>21</maven.compiler.target>' >> pom.xml
+          printf '%s\n' '        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>' >> pom.xml
+          printf '%s\n' '    </properties>' >> pom.xml
+          printf '%s\n' '' >> pom.xml
+          printf '%s\n' '    <build>' >> pom.xml
+          printf '%s\n' '        <plugins>' >> pom.xml
+          printf '%s\n' '            <plugin>' >> pom.xml
+          printf '%s\n' '                <groupId>org.apache.maven.plugins</groupId>' >> pom.xml
+          printf '%s\n' '                <artifactId>maven-shade-plugin</artifactId>' >> pom.xml
+          printf '%s\n' '                <version>3.5.0</version>' >> pom.xml
+          printf '%s\n' '                <executions>' >> pom.xml
+          printf '%s\n' '                    <execution>' >> pom.xml
+          printf '%s\n' '                        <phase>package</phase>' >> pom.xml
+          printf '%s\n' '                        <goals>' >> pom.xml
+          printf '%s\n' '                            <goal>shade</goal>' >> pom.xml
+          printf '%s\n' '                        </goals>' >> pom.xml
+          printf '%s\n' '                        <configuration>' >> pom.xml
+          printf '%s\n' '                            <createDependencyReducedPom>false</createDependencyReducedPom>' >> pom.xml
+          printf '%s\n' '                            <filters>' >> pom.xml
+          printf '%s\n' '                                <filter>' >> pom.xml
+          printf '%s\n' '                                    <artifact>*:*</artifact>' >> pom.xml
+          printf '%s\n' '                                    <excludes>' >> pom.xml
+          printf '%s\n' '                                        <exclude>META-INF/*.SF</exclude>' >> pom.xml
+          printf '%s\n' '                                        <exclude>META-INF/*.DSA</exclude>' >> pom.xml
+          printf '%s\n' '                                        <exclude>META-INF/*.RSA</exclude>' >> pom.xml
+          printf '%s\n' '                                    </excludes>' >> pom.xml
+          printf '%s\n' '                                </filter>' >> pom.xml
+          printf '%s\n' '                            </filters>' >> pom.xml
+          printf '%s\n' '                            <transformers>' >> pom.xml
+          printf '%s\n' '                                <!-- 1. Log4j2 Plugin Cache Transformer -->' >> pom.xml
+          printf '%s\n' '                                <transformer implementation="org.apache.maven.plugins.shade.resource.Log4j2PluginCacheTransformer"/>' >> pom.xml
+          printf '%s\n' '                                <!-- 2. Services Resource Transformer -->' >> pom.xml
+          printf '%s\n' '                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>' >> pom.xml
+          printf '%s\n' '                                <!-- 3. Log4j2配置文件合并 -->' >> pom.xml
+          printf '%s\n' '                                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">' >> pom.xml
+          printf '%s\n' '                                    <resource>log4j2.xml</resource>' >> pom.xml
+          printf '%s\n' '                                </transformer>' >> pom.xml
+          printf '%s\n' '                                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">' >> pom.xml
+          printf '%s\n' '                                    <resource>log4j2.properties</resource>' >> pom.xml
+          printf '%s\n' '                                </transformer>' >> pom.xml
+          printf '%s\n' '                                <!-- 4. Properties文件合并 -->' >> pom.xml
+          printf '%s\n' '                                <transformer implementation="org.apache.maven.plugins.shade.resource.PropertiesResourceTransformer"/>' >> pom.xml
+          printf '%s\n' '                                <!-- 5. XML文件合并 -->' >> pom.xml
+          printf '%s\n' '                                <transformer implementation="org.apache.maven.plugins.shade.resource.XmlAppendingTransformer"/>' >> pom.xml
+          printf '%s\n' '                                <!-- 6. Groovy资源合并 -->' >> pom.xml
+          printf '%s\n' '                                <transformer implementation="org.apache.maven.plugins.shade.resource.GroovyResourceTransformer"/>' >> pom.xml
+          printf '%s\n' '                                <!-- 7. Manifest设置主类 -->' >> pom.xml
+          printf '%s\n' '                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">' >> pom.xml
+          printf '%s\n' '                                    <mainClass>MAIN_CLASS_PLACEHOLDER</mainClass>' >> pom.xml
+          printf '%s\n' '                                </transformer>' >> pom.xml
+          printf '%s\n' '                            </transformers>' >> pom.xml
+          printf '%s\n' '                        </configuration>' >> pom.xml
+          printf '%s\n' '                    </execution>' >> pom.xml
+          printf '%s\n' '                </executions>' >> pom.xml
+          printf '%s\n' '            </plugin>' >> pom.xml
+          printf '%s\n' '        </plugins>' >> pom.xml
+          printf '%s\n' '    </build>' >> pom.xml
+          printf '%s\n' '' >> pom.xml
+          printf '%s\n' '    <dependencies>' >> pom.xml
+
+          # 为每个 jar 添加 system 依赖（使用 printf 插入变量）
           for jar in "${jar_files[@]}"; do
             filename=$(basename "$jar")
-            # 移除 .jar 后缀，作为 artifactId 的一部分
             artifactId="dep-${filename%.*}"
-            # 可选：清理非法字符（Maven 允许字母、数字、-、_、.，通常版本号中的点没问题）
-            # artifactId=$(echo "$artifactId" | sed 's/[^a-zA-Z0-9._-]/_/g')
-            printf '%s\n' \
-              "        <dependency>" \
-              "            <groupId>com.example.deps</groupId>" \
-              "            <artifactId>$artifactId</artifactId>" \
-              "            <version>1.0</version>" \
-              "            <scope>system</scope>" \
-              "            <systemPath>\${project.basedir}/libs/$filename</systemPath>" \
-              "        </dependency>" >> pom.xml
+            # 写入依赖块，注意转义 $ 符号（写成 \$ 防止 shell 解释）
+            printf '%s\n' "        <dependency>" >> pom.xml
+            printf '%s\n' "            <groupId>com.example.deps</groupId>" >> pom.xml
+            printf '%s\n' "            <artifactId>$artifactId</artifactId>" >> pom.xml
+            printf '%s\n' "            <version>1.0</version>" >> pom.xml
+            printf '%s\n' "            <scope>system</scope>" >> pom.xml
+            printf '%s\n' "            <systemPath>\${project.basedir}/libs/$filename</systemPath>" >> pom.xml
+            printf '%s\n' "        </dependency>" >> pom.xml
           done
 
-          # 关闭 dependencies 和 project 标签
-          printf '%s\n' \
-            '    </dependencies>' \
-            '</project>' >> pom.xml
+          # 关闭 dependencies 和 project
+          printf '%s\n' '    </dependencies>' >> pom.xml
+          printf '%s\n' '</project>' >> pom.xml
 
           # 替换主类占位符
           sed -i "s|MAIN_CLASS_PLACEHOLDER|${{ steps.parse.outputs.main_class }}|g" pom.xml
 
-          # 调试：输出 pom.xml 前20行和依赖部分
-          echo "=== pom.xml head ==="
+          # 调试输出
+          echo "=== Generated pom.xml (first 20 lines) ==="
           head -20 pom.xml
-          echo "=== dependencies sample (last 10 lines) ==="
+          echo "=== Last 10 lines ==="
           tail -10 pom.xml
-          echo "=== end ==="
 
       # 执行 Maven 打包
       - name: Build fat jar with Maven
@@ -225,6 +226,10 @@ jobs:
       # 上传生成的 Fat JAR
       - name: Upload Fat Jar
         uses: actions/upload-artifact@v4
+        with:
+          name: minecraft-server-fatjar
+          path: ${{ steps.locate.outputs.jar_path }}
+          if-no-files-found: error
         with:
           name: minecraft-server-fatjar
           path: ${{ steps.locate.outputs.jar_path }}
