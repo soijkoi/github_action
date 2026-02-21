@@ -61,7 +61,7 @@ jobs:
                 transform(com.github.jengelman.gradle.plugins.shadow.transformers.Log4j2PluginsCacheFileTransformer)
                 archiveFileName = 'minecraft-server-fat.jar'
                 manifest {
-                    attributes 'Main-Class': '${ env.MAIN_CLASS }'
+                    attributes 'Main-Class': '${{ env.MAIN_CLASS }}'
                 }
                 mergeServiceFiles()
                 exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA'
