@@ -28,13 +28,16 @@ jobs:
           curl -L "${{ github.event.inputs.jar_url }}" -o build_temp/server-origin.jar
           cd build_temp
           # 解压 META-INF 下的关键文件
-          jar -xf server-origin.jar META-INF/main-class META-INF/classpath-joined
+          jar -xf server-origin.jar
           
           MAIN_CLASS=$(cat META-INF/main-class)
           echo "MAIN_CLASS=$MAIN_CLASS" >> $GITHUB_ENV
-          
+
           # 解压所有依赖库和版本 Jar
-          jar -xf server-origin.jar
+
+          cd ..
+          mkdir -p src/main/java
+          echo "public class Placeholder {}" > src/main/java/Placeholder.java
 
       # 3. 使用 com.gradleup.shadow 构建
       - name: Generate Build Script
@@ -83,7 +86,7 @@ jobs:
               exclude 'META-INF/*.RSA'
           }
           EOF
-
+        
       - name: Build Fat Jar
         run: gradle shadowJar --no-daemon
 
