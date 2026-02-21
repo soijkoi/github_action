@@ -72,7 +72,7 @@ jobs:
           # 复制每个依赖 jar 到 fatjar/libs
           success_count=0
           while IFS= read -r relpath; do
-            src_path="$relpath"
+            src_path="META-INF/$relpath"
             if [ -f "$src_path" ]; then
               cp -v "$src_path" ../../fatjar/libs/
               ((success_count++))
