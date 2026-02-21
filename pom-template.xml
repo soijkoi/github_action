@@ -36,6 +36,12 @@
                         </goals>
                         <configuration>
                             <createDependencyReducedPom>false</createDependencyReducedPom>
+                               <artifactSet>
+                          <includes>
+            <!-- 通配符 *:* 表示包含所有传递性依赖 -->
+                              <include>*:*</include>
+                                   </includes>
+                               </artifactSet>
                             <filters>
                                 <filter>
                                     <artifact>*:*</artifact>
