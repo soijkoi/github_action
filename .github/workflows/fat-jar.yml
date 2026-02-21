@@ -171,7 +171,7 @@ jobs:
           printf '%s\n' '                            </filters>' >> pom.xml
           printf '%s\n' '                            <transformers>' >> pom.xml
           printf '%s\n' '                                <!-- 1. Log4j2 Plugin Cache Transformer -->' >> pom.xml
-          printf '%s\n' '                                <transformer implementation="org.apache.maven.plugins.shade.resource.Log4j2PluginCacheTransformer"/>' >> pom.xml
+          printf '%s\n' '                                <transformer implementation="org.apache.logging.log4j.maven.plugins.shade.transformer.Log4j2PluginCacheFileTransformer"/>' >> pom.xml
           printf '%s\n' '                                <!-- 2. Services Resource Transformer -->' >> pom.xml
           printf '%s\n' '                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>' >> pom.xml
           printf '%s\n' '                                <!-- 3. Log4j2配置文件合并 -->' >> pom.xml
