@@ -75,5 +75,5 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Minecraft-Fat-Jar
+          name: Minecraft-Fat-Jar.zip
           path: build/libs/minecraft-server-fat.jar
