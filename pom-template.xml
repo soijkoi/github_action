@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.example</groupId>
+    <artifactId>minecraft-server-fat</artifactId>
+    <version>1.0</version>
+    <packaging>jar</packaging>
+
+    <properties>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.5.0</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                            <transformers>
+                                <!-- Log4j2 Plugin Cache -->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.Log4j2PluginCacheTransformer"/>
+                                <!-- Services Resource -->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                                <!-- Log4j2 配置文件合并 -->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                                    <resource>log4j2.xml</resource>
+                                </transformer>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                                    <resource>log4j2.properties</resource>
+                                </transformer>
+                                <!-- Properties 文件合并 -->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.PropertiesResourceTransformer"/>
+                                <!-- XML 文件合并 -->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.XmlAppendingTransformer"/>
+                                <!-- Groovy 资源合并 -->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.GroovyResourceTransformer"/>
+                                <!-- Manifest 设置主类（占位符会被替换） -->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>MAIN_CLASS_PLACEHOLDER</mainClass>
+                                </transformer>
+                            </transformers>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <!-- 依赖项部分将在 CI 中动态生成 -->
+    <dependencies>
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-transform-maven-shade-plugin-extensions</artifactId>
+      <version>0.2.0</version>
+    </dependency>
+        <!-- 动态插入的依赖项会放在这里 -->
+    </dependencies>
