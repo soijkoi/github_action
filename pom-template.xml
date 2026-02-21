@@ -41,7 +41,7 @@
                             </filters>
                             <transformers>
                                 <!-- Log4j2 Plugin Cache -->
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.Log4j2PluginCacheTransformer"/>
+                                <transformer implementation="org.apache.logging.log4j.maven.plugins.shade.transformer.Log4j2PluginCacheFileTransformer"/>
                                 <!-- Services Resource -->
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
                                 <!-- Log4j2 配置文件合并 -->
