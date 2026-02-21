@@ -105,13 +105,19 @@ jobs:
 
           echo "Successfully copied ${#source_files[@]} jar files to fatjar/libs"
 
-      # 生成 Maven 项目 pom.xml（基于 fatjar/libs 下的实际文件）- 使用 printf
-      - name: Generate pom.xml with transformers (using printf)
+      - name: Generate final pom.xml from template (using printf for dependencies)
         shell: bash
         run: |
-          set -e
           cd fatjar
-          mkdir -p src/main/java  # 占位
+
+          # 检查模板是否存在
+          if [ ! -f "../pom-template.xml" ]; then
+            echo "Error: pom-template.xml not found in repository root"
+            exit 1
+          fi
+
+          # 复制模板
+          cp ../pom-template.xml pom.xml
 
           # 获取 libs 目录下所有 jar 文件
           shopt -s nullglob
@@ -123,111 +129,36 @@ jobs:
           echo "Found ${#jar_files[@]} jar files:"
           ls -l libs/
 
-          # 使用 printf 创建 pom.xml（逐行写入，避免 heredoc 缩进问题）
-          # 先清空文件
-          > pom.xml
-
-          # XML 声明和 project 开始
-          printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' >> pom.xml
-          printf '%s\n' '<project xmlns="http://maven.apache.org/POM/4.0.0"' >> pom.xml
-          printf '%s\n' '         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"' >> pom.xml
-          printf '%s\n' '         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">' >> pom.xml
-          printf '%s\n' '    <modelVersion>4.0.0</modelVersion>' >> pom.xml
-          printf '%s\n' '' >> pom.xml
-          printf '%s\n' '    <groupId>com.example</groupId>' >> pom.xml
-          printf '%s\n' '    <artifactId>minecraft-server-fat</artifactId>' >> pom.xml
-          printf '%s\n' '    <version>1.0</version>' >> pom.xml
-          printf '%s\n' '    <packaging>jar</packaging>' >> pom.xml
-          printf '%s\n' '' >> pom.xml
-          printf '%s\n' '    <properties>' >> pom.xml
-          printf '%s\n' '        <maven.compiler.source>21</maven.compiler.source>' >> pom.xml
-          printf '%s\n' '        <maven.compiler.target>21</maven.compiler.target>' >> pom.xml
-          printf '%s\n' '        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>' >> pom.xml
-          printf '%s\n' '    </properties>' >> pom.xml
-          printf '%s\n' '' >> pom.xml
-          printf '%s\n' '    <build>' >> pom.xml
-          printf '%s\n' '        <plugins>' >> pom.xml
-          printf '%s\n' '            <plugin>' >> pom.xml
-          printf '%s\n' '                <groupId>org.apache.maven.plugins</groupId>' >> pom.xml
-          printf '%s\n' '                <artifactId>maven-shade-plugin</artifactId>' >> pom.xml
-          printf '%s\n' '                <version>3.5.0</version>' >> pom.xml
-          printf '%s\n' '                <executions>' >> pom.xml
-          printf '%s\n' '                    <execution>' >> pom.xml
-          printf '%s\n' '                        <phase>package</phase>' >> pom.xml
-          printf '%s\n' '                        <goals>' >> pom.xml
-          printf '%s\n' '                            <goal>shade</goal>' >> pom.xml
-          printf '%s\n' '                        </goals>' >> pom.xml
-          printf '%s\n' '                        <configuration>' >> pom.xml
-          printf '%s\n' '                            <createDependencyReducedPom>false</createDependencyReducedPom>' >> pom.xml
-          printf '%s\n' '                            <filters>' >> pom.xml
-          printf '%s\n' '                                <filter>' >> pom.xml
-          printf '%s\n' '                                    <artifact>*:*</artifact>' >> pom.xml
-          printf '%s\n' '                                    <excludes>' >> pom.xml
-          printf '%s\n' '                                        <exclude>META-INF/*.SF</exclude>' >> pom.xml
-          printf '%s\n' '                                        <exclude>META-INF/*.DSA</exclude>' >> pom.xml
-          printf '%s\n' '                                        <exclude>META-INF/*.RSA</exclude>' >> pom.xml
-          printf '%s\n' '                                    </excludes>' >> pom.xml
-          printf '%s\n' '                                </filter>' >> pom.xml
-          printf '%s\n' '                            </filters>' >> pom.xml
-          printf '%s\n' '                            <transformers>' >> pom.xml
-          printf '%s\n' '                                <!-- 1. Log4j2 Plugin Cache Transformer -->' >> pom.xml
-          printf '%s\n' '                                <transformer implementation="org.apache.logging.log4j.maven.plugins.shade.transformer.Log4j2PluginCacheFileTransformer"/>' >> pom.xml
-          printf '%s\n' '                                <!-- 2. Services Resource Transformer -->' >> pom.xml
-          printf '%s\n' '                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>' >> pom.xml
-          printf '%s\n' '                                <!-- 3. Log4j2配置文件合并 -->' >> pom.xml
-          printf '%s\n' '                                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">' >> pom.xml
-          printf '%s\n' '                                    <resource>log4j2.xml</resource>' >> pom.xml
-          printf '%s\n' '                                </transformer>' >> pom.xml
-          printf '%s\n' '                                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">' >> pom.xml
-          printf '%s\n' '                                    <resource>log4j2.properties</resource>' >> pom.xml
-          printf '%s\n' '                                </transformer>' >> pom.xml
-          printf '%s\n' '                                <!-- 4. Properties文件合并 -->' >> pom.xml
-          printf '%s\n' '                                <transformer implementation="org.apache.maven.plugins.shade.resource.PropertiesResourceTransformer"/>' >> pom.xml
-          printf '%s\n' '                                <!-- 5. XML文件合并 -->' >> pom.xml
-          printf '%s\n' '                                <transformer implementation="org.apache.maven.plugins.shade.resource.XmlAppendingTransformer"/>' >> pom.xml
-          printf '%s\n' '                                <!-- 6. Groovy资源合并 -->' >> pom.xml
-          printf '%s\n' '                                <transformer implementation="org.apache.maven.plugins.shade.resource.GroovyResourceTransformer"/>' >> pom.xml
-          printf '%s\n' '                                <!-- 7. Manifest设置主类 -->' >> pom.xml
-          printf '%s\n' '                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">' >> pom.xml
-          printf '%s\n' '                                    <mainClass>MAIN_CLASS_PLACEHOLDER</mainClass>' >> pom.xml
-          printf '%s\n' '                                </transformer>' >> pom.xml
-          printf '%s\n' '                            </transformers>' >> pom.xml
-          printf '%s\n' '                        </configuration>' >> pom.xml
-          printf '%s\n' '                    </execution>' >> pom.xml
-          printf '%s\n' '                </executions>' >> pom.xml
-          printf '%s\n' '            </plugin>' >> pom.xml
-          printf '%s\n' '        </plugins>' >> pom.xml
-          printf '%s\n' '    </build>' >> pom.xml
-          printf '%s\n' '' >> pom.xml
-          printf '%s\n' '    <dependencies>' >> pom.xml
-
-          # 为每个 jar 添加 system 依赖（使用 printf 插入变量）
+          # 使用 printf 将依赖项写入临时文件
+          deps_temp=$(mktemp)
           for jar in "${jar_files[@]}"; do
             filename=$(basename "$jar")
             artifactId="dep-${filename%.*}"
-            # 写入依赖块，注意转义 $ 符号（写成 \$ 防止 shell 解释）
-            printf '%s\n' "        <dependency>" >> pom.xml
-            printf '%s\n' "            <groupId>com.example.deps</groupId>" >> pom.xml
-            printf '%s\n' "            <artifactId>$artifactId</artifactId>" >> pom.xml
-            printf '%s\n' "            <version>1.0</version>" >> pom.xml
-            printf '%s\n' "            <scope>system</scope>" >> pom.xml
-            printf '%s\n' "            <systemPath>\${project.basedir}/libs/$filename</systemPath>" >> pom.xml
-            printf '%s\n' "        </dependency>" >> pom.xml
+            # 使用 printf 逐行写入 dependency 块
+            printf '        <dependency>\n' >> "$deps_temp"
+            printf '            <groupId>com.example.deps</groupId>\n' >> "$deps_temp"
+            printf '            <artifactId>%s</artifactId>\n' "$artifactId" >> "$deps_temp"
+            printf '            <version>1.0</version>\n' >> "$deps_temp"
+            printf '            <scope>system</scope>\n' >> "$deps_temp"
+            printf '            <systemPath>${project.basedir}/libs/%s</systemPath>\n' "$filename" >> "$deps_temp"
+            printf '        </dependency>\n' >> "$deps_temp"
           done
 
-          # 关闭 dependencies 和 project
-          printf '%s\n' '    </dependencies>' >> pom.xml
-          printf '%s\n' '</project>' >> pom.xml
+          # 将临时文件内容插入到 pom.xml 的 </dependencies> 之前
+          # 使用 sed 的 r 命令在匹配行前插入文件内容
+          sed -i "/<\/dependencies>/r $deps_temp" pom.xml
+
+          # 删除临时文件
+          rm -f "$deps_temp"
 
           # 替换主类占位符
           sed -i "s|MAIN_CLASS_PLACEHOLDER|${{ steps.parse.outputs.main_class }}|g" pom.xml
 
           # 调试输出
-          echo "=== Generated pom.xml (first 20 lines) ==="
+          echo "=== Final pom.xml (first 20 lines) ==="
           head -20 pom.xml
           echo "=== Last 10 lines ==="
           tail -10 pom.xml
-
       # 执行 Maven 打包
       - name: Build fat jar with Maven
         run: |
