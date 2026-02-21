@@ -55,8 +55,9 @@ jobs:
           # 读取主类
           MAIN_CLASS=$(cat META-INF/main-class | tr -d '\n\r')
           echo "main_class=$MAIN_CLASS" >> $GITHUB_OUTPUT
-          cd ~
+          cd ../..
           tree
+          cd work/extracted
           # 读取 classpath-joined，生成依赖 jar 列表（相对于 extracted 根目录）
           CP_FILE="META-INF/classpath-joined"
           if [ ! -f "$CP_FILE" ]; then
