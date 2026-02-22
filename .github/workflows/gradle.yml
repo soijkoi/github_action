@@ -19,29 +19,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up JDK 21
+      - name: Set up JDK 25
         uses: actions/setup-java@v4
         with:
-          java-version: '21'
+          java-version: '25'
           distribution: 'temurin'
 
-      # 2. 下载并解压元数据 (获取 CP 参数和主类)
+      # 2. 下载并解压元数据
       - name: Extract Metadata
         run: |
           mkdir -p build_temp
-          curl -L "https://piston-data.mojang.com/v1/objects/3ca78d5068bf9b422f694d3f0820e289581c0f0d/server.jar" -o build_temp/server-origin.jar
           cd build_temp
-          # 解压 META-INF 下的关键文件
-          jar -xf server-origin.jar
-          
-          MAIN_CLASS=$(cat META-INF/main-class)
+          curl -L "https://piston-data.mojang.com/v1/objects/3ca78d5068bf9b422f694d3f0820e289581c0f0d/server.jar"
+          java -jar server.jar --nogui
+          rm -f server.jar
+          MAIN_CLASS=net.minecraft.server.Main
           echo "MAIN_CLASS=$MAIN_CLASS" >> $GITHUB_ENV
-
-          # 解压所有依赖库和版本 Jar
-
-          cd ..
-      #    mkdir -p src/main/java
-      # echo "public class Placeholder {}" > src/main/java/Placeholder.java
 
       # 3. 使用 com.gradleup.shadow 构建
       - name: Generate Build Script
@@ -57,14 +50,13 @@ jobs:
             }
             
             dependencies {
-            	implementation fileTree(dir: 'build_temp/META-INF', include: ['**/*.jar'])
+            	implementation fileTree(dir: 'build_temp', include: ['**/*.jar'])
             }
             
             shadowJar {
                 duplicatesStrategy = 'fail'
                 mergeServiceFiles()
-
-                archiveFileName = 'minecraft-server-fat.jar'
+                archiveFileName = 'server-fat.jar'
                 manifest {
                     attributes 'Main-Class': '${{ env.MAIN_CLASS }}'
                 }
@@ -80,4 +72,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Minecraft-Fat-Jar.zip
-          path: build/libs/minecraft-server-fat.jar
+          path: build/libs/server-fat.jar
