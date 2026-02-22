@@ -55,13 +55,13 @@ jobs:
             }
             
             shadowJar {
-                duplicatesStrategy = 'warn'
+                
                 mergeServiceFiles()
                 archiveFileName = 'server-fat.jar'
                 manifest {
                     attributes 'Main-Class': '${{ env.MAIN_CLASS }}'
                 }
-                exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA'
+                exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA' ,'**/Log4j2Plugins.dat'
             }
           EOF
         
