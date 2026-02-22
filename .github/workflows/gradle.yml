@@ -61,6 +61,7 @@ jobs:
             }
             
             shadowJar {
+                duplicatesStrategy = 'warn'
                 mergeServiceFiles()
                 transform(com.github.jengelman.gradle.plugins.shadow.transformers.Log4j2PluginsCacheFileTransformer)
                 archiveFileName = 'minecraft-server-fat.jar'
