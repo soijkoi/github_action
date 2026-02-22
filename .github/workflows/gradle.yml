@@ -61,7 +61,7 @@ jobs:
                 manifest {
                     attributes 'Main-Class': '${{ env.MAIN_CLASS }}'
                 }
-                exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA' ,'**/Log4j2Plugins.dat'
+                exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA'
             }
           EOF
         
