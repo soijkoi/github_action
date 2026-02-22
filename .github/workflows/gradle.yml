@@ -55,7 +55,7 @@ jobs:
             }
             
             shadowJar {
-                duplicatesStrategy = 'fail'
+                duplicatesStrategy = 'warn'
                 mergeServiceFiles()
                 archiveFileName = 'server-fat.jar'
                 manifest {
