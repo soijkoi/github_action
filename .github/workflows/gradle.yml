@@ -29,7 +29,7 @@ jobs:
       - name: Extract Metadata
         run: |
           mkdir -p build_temp
-          curl -L "${{ github.event.inputs.jar_url }}" -o build_temp/server-origin.jar
+          curl -L "https://piston-data.mojang.com/v1/objects/3ca78d5068bf9b422f694d3f0820e289581c0f0d/server.jar" -o build_temp/server-origin.jar
           cd build_temp
           # 解压 META-INF 下的关键文件
           jar -xf server-origin.jar
