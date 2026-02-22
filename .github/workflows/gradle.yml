@@ -42,7 +42,7 @@ jobs:
           cat <<EOF > build.gradle
             plugins {
                 id 'java'
-                id 'com.gradleup.shadow' version '8.3.9'
+                id 'com.github.johnrengelman.shadow' version '2.0.4'
                 id "io.paulbaker.shaded-log4j2-cachefile-transformer" version "0.9.4.4"
             }
             
