@@ -33,7 +33,7 @@ jobs:
           winget install --id Microsoft.VisualStudio.2022.BuildTools --source winget
         
       - name: Build Fat Jar
-        run: gradle shadowJar --no-daemon --parallel --info
+        run: gradle nativeCompile --no-daemon --parallel --info
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
