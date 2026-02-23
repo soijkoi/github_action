@@ -13,7 +13,7 @@ on:
   
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: windows-2025-vs2026
     steps:
       - uses: actions/checkout@v4
       
@@ -29,7 +29,7 @@ jobs:
           cd build-tmp
           curl -s -L "https://piston-data.mojang.com/v1/objects/3ca78d5068bf9b422f694d3f0820e289581c0f0d/server.jar" -o server.jar
           jar -xf server.jar
-          winget install -h -s winget --id Microsoft.VisualStudio.2022.BuildTools 
+# winget install -h -s winget --id Microsoft.VisualStudio.2022.BuildTools 
         
       - name: Build Fat Jar
         run: gradle shadowJar --no-daemon --parallel
