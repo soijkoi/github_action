@@ -35,11 +35,11 @@ graalvmNative {
                 main {
                         imageName = 'minecraft-server'
                         mainClass = 'net.minecraft.server.Main'
-                        useFatJar = false
                         fallback = false
                         buildArgs.add('--enable-url-protocols=http,https')
                         buildArgs.add('-H:Preserve=module=ALL-UNNAMED')
                         buildArgs.add('--initialize-at-run-time=io.netty.channel.kqueue.Native')
+                        buildArgs.add('--initialize-at-build-time=org.apache.logging.slf4j.Log4jLogger')
                 }
         }
         metadataRepository {
