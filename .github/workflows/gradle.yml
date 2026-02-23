@@ -52,7 +52,7 @@ jobs:
             shadowJar {
                     archiveFileName = 'server-fat.jar'
                     manifest {
-                            attributes 'Main-Class': $(cat tmp/META-INF/main-class)
+                            attributes 'Main-Class': '$(cat tmp/META-INF/main-class)'
                     }
                     duplicatesStrategy = 'include'
                     mergeServiceFiles()
