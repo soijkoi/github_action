@@ -22,7 +22,7 @@ jobs:
           java-version: 'latest-ea'
           github-token: ${{ secrets.GITHUB_TOKEN }}
           native-image-job-reports: 'true'
-          components: 'native-image'
+  #components: 'native-image'
 
       - name: Extract Metadata
         run: |
