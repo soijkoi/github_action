@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       jar_url:
-        description: 'Minecraft Server Jar 下载链接'
+        description: 'Minecraft Server Jar Download Link'
         required: true
-        default: 'https://piston-data.mojang.com/v1/objects/3ca78d5068bf9b422f694d3f0820e289581c0f0d/server.jar'
+        default: https://piston-data.mojang.com/v1/objects/3ca78d5068bf9b422f694d3f0820e289581c0f0d/server.jar
   
 jobs:
   build:
@@ -25,52 +25,51 @@ jobs:
           java-version: '25'
           distribution: 'temurin'
 
-      # 2. 下载并解压元数据
       - name: Extract Metadata
         run: |
-          mkdir -p build_temp
-          cd build_temp
+          mkdir -p tmp
+          cd tmp
           wget "https://piston-data.mojang.com/v1/objects/3ca78d5068bf9b422f694d3f0820e289581c0f0d/server.jar"
-          java -jar server.jar --nogui
-          rm -f server.jar
-          MAIN_CLASS=net.minecraft.server.Main
-          echo "MAIN_CLASS=$MAIN_CLASS" >> $GITHUB_ENV
+          jar -xf server.jar
 
-      # 3. 使用 com.gradleup.shadow 构建
       - name: Generate Build Script
         run: |
+        
           cat <<EOF > build.gradle
             plugins {
-                id 'java'
-                id 'com.gradleup.shadow' version '9.3.1'
+                    id 'java'
+                    id 'com.gradleup.shadow' version '9.3.1'
             }
             
             repositories {
-                gradlePluginPortal()
-                mavenCentral()
+                    mavenCentral()
             }
             
             dependencies {
-            	implementation fileTree(dir: 'build_temp', include: ['**/*.jar'])
+                    implementation fileTree(dir: 'tmp/META-INF', include: ['**/*.jar'])
             }
             
             shadowJar {
-                
-                mergeServiceFiles()
-                archiveFileName = 'server-fat.jar'
-                manifest {
-                    attributes 'Main-Class': '${{ env.MAIN_CLASS }}'
-                }
-                exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA'
+                    archiveFileName = 'server-fat.jar'
+                    manifest {
+                            attributes 'Main-Class': $(cat tmp/META-INF/main-class)
+                    }
+                    duplicatesStrategy = 'include'
+                    mergeServiceFiles()
+                    transform(com.github.jengelman.gradle.plugins.shadow.transformers.Log4j2PluginsCacheFileTransformer)
+                    transform(com.github.jengelman.gradle.plugins.shadow.transformers.PropertiesFileTransformer)
+                    exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA'
+                    exclude 'META-INF/LICENSE*', 'META-INF/AL*', 'META-INF/LGPL*'
+                    exclude 'META-INF/NOTICE*','META-INF/DEPENDENCIES'
+                    exclude 'META-INF/**/pom.*'
             }
           EOF
         
       - name: Build Fat Jar
-        run: gradle shadowJar --no-daemon --warning-mode all
+        run: gradle shadowJar --no-daemon --parallel --info
 
-      # 4. 提供结果下载
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Minecraft-Fat-Jar.zip
+          name: Minecraft-Fat-Jar
           path: build/libs/server-fat.jar
