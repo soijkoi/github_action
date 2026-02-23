@@ -1,0 +1,52 @@
+plugins {
+        id 'java'
+        id 'com.gradleup.shadow' version '9.3.1'
+        id 'org.graalvm.buildtools.native' version '0.11.4'
+}
+
+repositories {
+        mavenCentral()
+}
+
+dependencies {
+        implementation fileTree(dir: 'build-tmp', include: ['**/*.jar'])
+}
+
+shadowJar {
+        duplicatesStrategy = 'include'
+        mergeServiceFiles()
+        archiveFileName = 'server-fat.jar'
+        manifest {
+                attributes 'Main-Class': 'net.minecraft.server.Main'
+        }
+        transform(com.github.jengelman.gradle.plugins.shadow.transformers.Log4j2PluginsCacheFileTransformer)
+        transform(com.github.jengelman.gradle.plugins.shadow.transformers.PropertiesFileTransformer)
+        exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA'
+        exclude 'META-INF/LICENSE*', 'META-INF/AL*', 'META-INF/LGPL*'
+        exclude 'META-INF/NOTICE*','META-INF/DEPENDENCIES'
+        exclude 'META-INF/**/pom.*'
+}
+graalvmNative {
+        binaries.all {
+                resources.autodetect()
+        }
+
+        binaries {
+                main {
+                        imageName = 'minecraft-server'
+                        mainClass = 'net.minecraft.server.Main'
+                        useFatJar = false
+                        fallback = false
+                        buildArgs.add('--enable-url-protocols=http,https')
+                        buildArgs.add('-H:Preserve=module=ALL-UNNAMED')
+                }
+        }
+        metadataRepository {
+                enabled = false
+        }
+
+}
+
+tasks.named('nativeCompile') {
+    dependsOn tasks.shadowJar
+}
