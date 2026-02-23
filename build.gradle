@@ -38,7 +38,7 @@ graalvmNative {
                         useFatJar = false
                         fallback = false
                         buildArgs.add('--enable-url-protocols=http,https')
-                        buildArgs.add('-H:Preserve=module=ALL-UNNAMED')
+
                 }
         }
         metadataRepository {
