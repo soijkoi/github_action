@@ -15,14 +15,14 @@ jobs:
   build:
     runs-on: windows-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 25
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v4
+      
+      - uses: graalvm/setup-graalvm@v1
         with:
-          java-version: '25'
-          distribution: 'graalvm'
+          java-version: 'latest-ea'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          native-image-job-reports: 'true'
+          components: 'native-image'
 
       - name: Extract Metadata
         run: |
@@ -39,7 +39,7 @@ jobs:
         run: |
             mkdir native-tmp
             cd native-tmp
-            native-image -jar build/libs/server-fat.jar --no-fallback --initialize-at-run-time=io.netty --enable-native-access ALL-UNNAMED --future-defaults=all -H:Preserve=module=ALL-UNNAMED -J-XX:-ExitOnOutOfMemoryError --enable-preview -esa --static-nolibc --enable-all-security-services --enable-https --enable-http -march=native -J-Xmx16g -Os --enable-monitoring -o native-server
+            native-image -jar ../build/libs/server-fat.jar --no-fallback --initialize-at-run-time=io.netty --enable-native-access ALL-UNNAMED --future-defaults=all -H:Preserve=module=ALL-UNNAMED -J-XX:-ExitOnOutOfMemoryError --enable-preview -esa --static-nolibc --enable-all-security-services --enable-https --enable-http -march=native -J-Xmx16g -Os --enable-monitoring -o native-server
         
       - name: Upload Artifact
         uses: actions/upload-artifact@v6
