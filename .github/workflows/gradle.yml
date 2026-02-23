@@ -26,19 +26,22 @@ jobs:
 
       - name: Extract Metadata
         run: |
-          mkdir -p build-tmp
+          mkdir build-tmp
           cd build-tmp
-          curl -L "https://piston-data.mojang.com/v1/objects/3ca78d5068bf9b422f694d3f0820e289581c0f0d/server.jar" -o server.jar
+          curl -L "${{inputs.jar_url}}" -o server.jar
           jar -xf server.jar
           winget install --id Microsoft.VisualStudio.2022.BuildTools --source winget
         
       - name: Build Fat Jar
-        run: gradle shadowJar --no-daemon --parallel --info
+        run: gradle shadowJar --no-daemon --parallel
         
       - name: Build Native Image
-        run: native-image -jar build/libs/server-fat.jar --initialize-at-run-time=io.netty --enable-native-access ALL-UNNAMED -H:Preserve=module=ALL-UNNAMED -J-XX:-ExitOnOutOfMemoryError --enable-preview -esa --static-nolibc --enable-all-security-services --enable-https --enable-http -march=native -J-Xmx16g -Os --enable-monitoring -o native-server
+        run: |
+            mkdir native-tmp
+            cd native-tmp
+            native-image -jar build/libs/server-fat.jar --no-fallback --initialize-at-run-time=io.netty --enable-native-access ALL-UNNAMED --future-defaults=all -H:Preserve=module=ALL-UNNAMED -J-XX:-ExitOnOutOfMemoryError --enable-preview -esa --static-nolibc --enable-all-security-services --enable-https --enable-http -march=native -J-Xmx16g -Os --enable-monitoring -o native-server
         
       - name: Upload Artifact
         uses: actions/upload-artifact@v6
         with:
-          path: native-server*
+          path: native-tmp/*
