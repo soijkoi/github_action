@@ -37,9 +37,9 @@ graalvmNative {
                         mainClass = 'net.minecraft.server.Main'
                         fallback = false
                         buildArgs.add('--enable-url-protocols=http,https')
-                        buildArgs.add('-H:Preserve=module=ALL-UNNAMED')
+                        buildArgs.add('-H:Preserve=module=ALL-UNNAMED -J-XX:-ExitOnOutOfMemoryError -J-Xmx16g -Os')
                         buildArgs.add('--initialize-at-run-time=io.netty')
-                        buildArgs.add('--initialize-at-build-time=org.apache.logging.slf4j.Log4jLogger')
+                        //buildArgs.add('--initialize-at-build-time=org.apache.logging.slf4j.Log4jLogger')
                 }
         }
         metadataRepository {
