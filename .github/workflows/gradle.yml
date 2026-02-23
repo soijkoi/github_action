@@ -1,4 +1,4 @@
-name: Build Minecraft Fat-Jar (GradleUp Shadow)
+name: Build Minecraft Fat-Jar
 
 on:
   push:
@@ -33,10 +33,12 @@ jobs:
           winget install --id Microsoft.VisualStudio.2022.BuildTools --source winget
         
       - name: Build Fat Jar
-        run: gradle nativeCompile --no-daemon --parallel --info
-
+        run: gradle shadowJar --no-daemon --parallel --info
+        
+      - name: Build Native Image
+        run: native-image -jar build/libs/server-fat.jar --initialize-at-run-time=io.netty --enable-native-access ALL-UNNAMED -H:Preserve=module=ALL-UNNAMED -J-XX:-ExitOnOutOfMemoryError --enable-preview -esa --static-nolibc --enable-all-security-services --enable-https --enable-http -march=native -J-Xmx16g -Os --enable-monitoring -o native-server
+        
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
-          name: output.zip
-          path: build/*
+          path: native-server*
