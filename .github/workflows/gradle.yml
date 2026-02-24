@@ -36,7 +36,7 @@ jobs:
       - name: Build Native Image
         run: |
             cd native-tmp
-            native-image -jar ../build/libs/server-fat.jar -o native-server --enable-monitoring=all --enable-https --enable-http --no-fallback --future-defaults=all --enable-preview -march=skylake -Os --static-nolibc -J-XX:-ExitOnOutOfMemoryError -J-Xmx16g ---enable-native-access ALL-UNNAMED -esa -H:+UnlockExperimentalVMOptions -H:-ForeignAPISupport -H:DeadlockWatchdogInterval=0 -H:Preserve=module=ALL-UNNAMED
+            native-image -jar ../build/libs/server-fat.jar -o native-server --enable-monitoring=all --enable-https --enable-http --no-fallback --future-defaults=all --enable-preview -march=skylake -Os --static-nolibc -J-XX:-ExitOnOutOfMemoryError -J-Xmx16g --enable-native-access=ALL-UNNAMED -esa -H:+UnlockExperimentalVMOptions -H:-ForeignAPISupport -H:DeadlockWatchdogInterval=0 -H:Preserve=module=ALL-UNNAMED
             
       - uses: actions/upload-artifact@v6
         with:
