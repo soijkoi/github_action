@@ -25,6 +25,7 @@ jobs:
       - name: Extract Metadata
         run: |
           mkdir build-tmp
+          mkdir native-tmp
           cd build-tmp
           curl -s -L "https://piston-data.mojang.com/v1/objects/3ca78d5068bf9b422f694d3f0820e289581c0f0d/server.jar" -o server.jar
           jar -xf server.jar
@@ -34,10 +35,13 @@ jobs:
         
       - name: Build Native Image
         run: |
-            mkdir native-tmp
             cd native-tmp
-            native-image -jar ../build/libs/server-fat.jar -H:-ForeignAPISupport --no-fallback --initialize-at-run-time=io.netty,joptsimple H:DeadlockWatchdogInterval=0 --enable-native-access ALL-UNNAMED --future-defaults=all -J-XX:-ExitOnOutOfMemoryError -H:Preserve=module=ALL-UNNAMED --enable-preview -esa --static-nolibc --enable-https --enable-http -march=skylake -J-Xmx16800m -Os --enable-monitoring=all -o native-server
-        
+            native-image -jar ../build/libs/server-fat.jar -o native-server \
+            --enable-monitoring=all --enable-https --enable-http --no-fallback --future-defaults=all --enable-preview \
+            -march=skylake -Os --static-nolibc \
+            -J-XX:-ExitOnOutOfMemoryError -J-Xmx16g \
+            --initialize-at-run-time --enable-native-access ALL-UNNAMED -esa \
+            -H:-ForeignAPISupport -H:DeadlockWatchdogInterval=0 -H:Preserve=module=ALL-UNNAMED -H:+UnlockExperimentalVMOptions
       - uses: actions/upload-artifact@v6
         with:
           path: native-tmp/*
