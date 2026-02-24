@@ -36,7 +36,7 @@ jobs:
         run: |
             mkdir native-tmp
             cd native-tmp
-            native-image -jar ../build/libs/server-fat.jar -H:-ForeignAPISupport --no-fallback --initialize-at-run-time=io.netty,joptsimple --enable-native-access ALL-UNNAMED --future-defaults=all -J-XX:-ExitOnOutOfMemoryError -H:Preserve=module=ALL-UNNAMED --enable-preview -esa --static-nolibc --enable-https --enable-http -march=skylake -J-Xmx16g -Os --enable-monitoring=all -o native-server
+            native-image -jar ../build/libs/server-fat.jar -H:-ForeignAPISupport --no-fallback --initialize-at-run-time=io.netty,joptsimple H:DeadlockWatchdogInterval=0 --enable-native-access ALL-UNNAMED --future-defaults=all -J-XX:-ExitOnOutOfMemoryError -H:Preserve=module=ALL-UNNAMED --enable-preview -esa --static-nolibc --enable-https --enable-http -march=skylake -J-Xmx16800m -Os --enable-monitoring=all -o native-server
         
       - uses: actions/upload-artifact@v6
         with:
