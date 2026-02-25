@@ -53,7 +53,7 @@ jobs:
           Start-Sleep -Seconds 15
           
           Write-Host "Sending 'stop' command to gracefully shut down..."
-          $process.StandardInput.WriteLine("stop")com
+          $process.StandardInput.WriteLine("stop")
           $process.StandardInput.Close()
           
           $process.WaitForExit(30000) | Out-Null
