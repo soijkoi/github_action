@@ -38,7 +38,7 @@ jobs:
         run: |
           cd native-tmp
           Write-Host "Starting Minecraft server with native-image-agent..."
-          "eula=true" | Out-File -FilePath "eula.txt"
+          "eula=true" | Out-File -FilePath "eula.txt" -Encoding utf8NoBOM
           $psi = New-Object System.Diagnostics.ProcessStartInfo
           $psi.FileName = "java"
           $psi.Arguments = "-agentlib:native-image-agent=config-output-dir=./native-config -jar ../build/libs/server-fat.jar"
