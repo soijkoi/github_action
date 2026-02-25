@@ -36,9 +36,9 @@ jobs:
       - name: Generate Native Image Configuration with Agent
         shell: powershell
         run: |
+          cp eula.txt native-tmp
           cd native-tmp
           Write-Host "Starting Minecraft server with native-image-agent..."
-          "eula=true" | Out-File -FilePath "eula.txt" -Encoding utf8
           $psi = New-Object System.Diagnostics.ProcessStartInfo
           $psi.FileName = "java"
           $psi.Arguments = "-agentlib:native-image-agent=config-output-dir=./native-config -jar ../build/libs/server-fat.jar"
