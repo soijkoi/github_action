@@ -49,8 +49,8 @@ jobs:
           $process.StartInfo = $psi
           $process.Start() | Out-Null
           
-          Write-Host "Waiting for server to initialize (15 seconds)..."
-          Start-Sleep -Seconds 15
+          Write-Host "Waiting for server to initialize (30 seconds)..."
+          Start-Sleep -Seconds 30
           
           Write-Host "Sending 'stop' command to gracefully shut down..."
           $process.StandardInput.WriteLine("stop")
@@ -61,13 +61,12 @@ jobs:
               Write-Host "Server exited with code $($process.ExitCode)"
               exit $process.ExitCode
           }
-          
           Write-Host "Configuration files generated in ./native-config:"
           Get-ChildItem ./native-config
       - name: Build Native Image
         run: |
             cd native-tmp
-            
+            native-image -jar ../build/libs/server-fat.jar -o native-server  --initialize-at-build-time=org.apache.logging.slf4j,org.apache.logging.log4j --initialize-at-run-time=io.netty,joptsimple --enable-monitoring=all --no-fallback --enable-https --enable-http --future-defaults=all --enable-preview -march=skylake -Os --static-nolibc --enable-native-access ALL-UNNAMED -J-XX:-ExitOnOutOfMemoryError -H:+UnlockExperimentalVMOptions -J-Xmx17g -H:-DeadlockWatchdogExitOnTimeout -H:Preserve=package=net.minecraft.*
             
       - uses: actions/upload-artifact@v6
         with:
