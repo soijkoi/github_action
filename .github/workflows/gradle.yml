@@ -36,7 +36,7 @@ jobs:
       - name: Build Native Image
         run: |
             cd native-tmp
-            native-image -jar ../build/libs/server-fat.jar -o native-server  --initialize-at-build-time=org.apache.logging.slf4j,org.apache.logging.log4j --initialize-at-run-time=io.netty.buffer.Unpooled,io.netty.buffer.CompositeByteBuf,joptsimple --enable-monitoring=all --no-fallback --enable-https --enable-http --future-defaults=all --enable-preview -march=skylake -Os --static-nolibc --enable-native-access ALL-UNNAMED -J-XX:-ExitOnOutOfMemoryError -H:+UnlockExperimentalVMOptions -J-Xmx17g -H:-DeadlockWatchdogExitOnTimeout
+            native-image -jar ../build/libs/server-fat.jar -o native-server  --initialize-at-build-time=org.apache.logging.slf4j,org.apache.logging.log4j --initialize-at-run-time=io.netty,joptsimple --enable-monitoring=all --no-fallback --enable-https --enable-http --future-defaults=all --enable-preview -march=skylake -Os --static-nolibc --enable-native-access ALL-UNNAMED -J-XX:-ExitOnOutOfMemoryError -H:+UnlockExperimentalVMOptions -J-Xmx17g -H:-DeadlockWatchdogExitOnTimeout
             
       - uses: actions/upload-artifact@v6
         with:
