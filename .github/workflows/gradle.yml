@@ -33,6 +33,36 @@ jobs:
       - name: Build Fat Jar
         run: gradle shadowJar --no-daemon --parallel
         
+      - name: Generate Native Image Configuration with Agent
+        shell: powershell
+        run: |
+          cd native-tmp
+          Write-Host "Starting Minecraft server with native-image-agent..."
+          $psi = New-Object System.Diagnostics.ProcessStartInfo
+          $psi.FileName = "java"
+          $psi.Arguments = "-agentlib:native-image-agent=config-output-dir=./native-config -jar ../build/libs/server-fat.jar"
+          $psi.RedirectStandardInput = $true
+          $psi.UseShellExecute = $false
+          $psi.WorkingDirectory = Get-Location
+          $process = New-Object System.Diagnostics.Process
+          $process.StartInfo = $psi
+          $process.Start() | Out-Null
+          echo eula=true > eula.txt
+          Write-Host "Waiting for server to initialize (15 seconds)..."
+          Start-Sleep -Seconds 15
+          
+          Write-Host "Sending 'stop' command to gracefully shut down..."
+          $process.StandardInput.WriteLine("stop")
+          $process.StandardInput.Close()
+          
+          $process.WaitForExit(30000) | Out-Null
+          if ($process.ExitCode -ne 0) {
+              Write-Host "Server exited with code $($process.ExitCode)"
+              exit $process.ExitCode
+          }
+          
+          Write-Host "Configuration files generated in ./native-config:"
+          Get-ChildItem ./native-config
       - name: Build Native Image
         run: |
             cd native-tmp
